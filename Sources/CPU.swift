@@ -1,5 +1,3 @@
-
-
 enum AddressingMode {
    case Immediate
    case ZeroPage
@@ -13,12 +11,28 @@ enum AddressingMode {
    case NoneAddressing
 }
 
+struct CPUFlags: OptionSet {
+    var rawValue: UInt8
+
+    static let carry = CPUFlags(rawValue: 0b00000001)
+    static let zero = CPUFlags(rawValue: 0b00000010)
+    static let interruptDisable = CPUFlags(rawValue: 0b00000100)
+    static let decimalMode = CPUFlags(rawValue: 0b00001000)
+    static let break1 = CPUFlags(rawValue: 0b00010000)
+    static let break2 = CPUFlags(rawValue: 0b00100000)
+    static let overflow = CPUFlags(rawValue: 0b01000000)
+    static let negative = CPUFlags(rawValue: 0b10000000)
+}
+
+let STACK: UInt16 = 0x0100
+let STACK_RESET: UInt8 = 0xfd
+
 class CPU {
     var register_a: UInt8 = 0
     var register_x: UInt8 = 0
     var register_y: UInt8 = 0
-
-    var status: UInt8 = 0
+    var stackPointer: UInt8 = STACK_RESET
+    var status: CPUFlags = [.interruptDisable, .break2]
     var programCounter: UInt16 = 0
     private var memory = [UInt8](repeating: 0, count: 0xFFFF)
 
@@ -65,32 +79,12 @@ class CPU {
         }
     }
 
-    func memRead(_ addr: UInt16) -> UInt8 {
-        memory[Int(addr)]
-    }
-
-    func memReadU16(_ addr: UInt16) -> UInt16 {
-        let lo = UInt16(memRead(addr))
-        let hi = UInt16(memRead(addr + 1))
-        return (hi << 8) | lo
-    }
-
-    func memWriteU16(addr: UInt16, data: UInt16) {
-        let hi = UInt8(data >> 8)
-        let lo = UInt8(data & 0xff)
-        self.memWrite(addr: addr, data: lo)
-        self.memWrite(addr: addr + 1, data: hi)
-    }
-
-    func memWrite(addr: UInt16, data: UInt8) {
-        memory[Int(addr)] = data
-    }
-
     func reset() {
         register_a = 0
         register_x = 0
         register_y = 0
-        status = 0
+        stackPointer = STACK_RESET
+        status = [.interruptDisable, .break2]
 
         programCounter = self.memReadU16(0xFFFC)
     }
@@ -102,14 +96,21 @@ class CPU {
     }
 
     func load(_ program: [UInt8]) {
-        memory[0x8000 ..< (0x8000 + program.count)] = program[0..<program.count]
-        memWriteU16(addr: 0xFFFC, data: 0x8000)
+        memory[0x0600 ..< (0x0600 + program.count)] = program[0..<program.count]
+        memWriteU16(0xFFFC, data: 0x0600)
     }
 
     func run() {
+        run {
+
+        }
+    }
+
+    func run(callback: () -> ()) {
         let opcodes = OPCODES_MAP
 
         while true {
+            callback()
             let code = memRead(programCounter)
             programCounter += 1
 
@@ -123,11 +124,151 @@ class CPU {
             /// STA
             case 0x85, 0x95, 0x8d, 0x9d, 0x99, 0x81, 0x91:
                 sta(opcode.mode)
+            case 0xd8:
+                status.remove(.decimalMode)
+            case 0x58:
+                status.remove(.interruptDisable)
+            case 0xb8:
+                status.remove(.overflow)
+            case 0x18:
+                clearCarryFlag()
+            case 0x38:
+                setCarryFlag()
+            case 0x78:
+                status.insert(.interruptDisable)
+            case 0xf8:
+                status.insert(.decimalMode)
+            case 0x48:
+                stackPush(register_a)
+            case 0x68:
+                pla()
+            case 0x08:
+                php()
+            case 0x28:
+                plp()
+            case 0x69, 0x65, 0x75, 0x6d, 0x7d, 0x79, 0x61, 0x71:
+                adc(opcode.mode)
+            case 0xe9, 0xe5, 0xf5, 0xed, 0xfd, 0xf9, 0xe1, 0xf1:
+                sbc(opcode.mode)
+            case 0x29, 0x25, 0x35, 0x2d, 0x3d, 0x39, 0x21, 0x31:
+                and(opcode.mode)
+            case 0x49, 0x45, 0x55, 0x4d, 0x5d, 0x59, 0x41, 0x51:
+                eor(opcode.mode)
+            case 0x09, 0x05, 0x15, 0x0d, 0x1d, 0x19, 0x01, 0x11:
+                ora(opcode.mode)
+            case 0x4a:
+                lsrAccumulator()
+            case 0x46, 0x56, 0x4e, 0x5e:
+                _ = lsr(opcode.mode)
+            case 0x0a:
+                aslAccumulator()
+            case 0x06, 0x16, 0x0e, 0x1e:
+                _ = asl(opcode.mode)
+            case 0x2a:
+                rolAccumulator()
+            case 0x26, 0x36, 0x2e, 0x3e:
+                _ = rol(opcode.mode)
+            case 0x6a:
+                rorAccumulator()
+            case 0x66, 0x76, 0x6e, 0x7e:
+                _ = ror(opcode.mode)
+            case 0xe6, 0xf6, 0xee, 0xfe:
+                _ = inc(opcode.mode)
+            case 0xc8:
+                iny()
+            case 0xc6, 0xd6, 0xce, 0xde:
+                _ = dec(opcode.mode)
+            case 0xca:
+                dex()
+            case 0x88:
+                dey()
+            case 0xc9, 0xc5, 0xd5, 0xcd, 0xdd, 0xd9, 0xc1, 0xd1:
+                compare(mode: opcode.mode, compare_with: register_a)
+            case 0xc0, 0xc4, 0xcc:
+                compare(mode: opcode.mode, compare_with: register_y)
+            case 0xe0, 0xe4, 0xec:
+                compare(mode: opcode.mode, compare_with: register_x)
+            case 0x4c:
+                let memAddr = memReadU16(programCounter)
+                programCounter = memAddr
+            case 0x6c:
+                let memAddr = memReadU16(programCounter)
+                //6502 bug mode with with page boundary:
+                //  if address $3000 contains $40, $30FF contains $80, and $3100 contains $50,
+                // the result of JMP ($30FF) will be a transfer of control to $4080 rather than $5080 as you intended
+                // i.e. the 6502 took the low byte of the address from $30FF and the high byte from $3000
+                let indirectRef: UInt16
+                if memAddr & 0x00ff == 0x00ff {
+                    let lo = memRead(memAddr)
+                    let hi = memRead(memAddr & 0x00ff)
+                    indirectRef = UInt16(hi) << 8 | UInt16(lo)
+                } else {
+                    indirectRef = memReadU16(memAddr)
+                }
+
+                programCounter = indirectRef
+
+            case 0x20:
+                stackPushU16(programCounter + 2 - 1)
+                let targetAddr = memReadU16(programCounter)
+                programCounter = targetAddr
+            case 0x60:
+                programCounter = stackPopU16() + 1
+            case 0x40:
+                status.rawValue = stackPop()
+                status.remove(.break1)
+                status.remove(.break2)
+
+                programCounter = stackPopU16()
+            case 0xd0:
+                branch(!status.contains(.zero))
+            case 0x70:
+                branch(status.contains(.overflow))
+            case 0x50:
+                branch(!status.contains(.overflow))
+            case 0x10:
+                branch(!status.contains(.negative))
+            case 0x30:
+                branch(status.contains(.negative))
+            case 0xf0:
+                branch(status.contains(.zero))
+            case 0xb0:
+                branch(status.contains(.carry))
+            case 0x90:
+                branch(!status.contains(.carry))
+            case 0x24, 0x2c:
+                bit(opcode.mode)
+            case 0x86, 0x96, 0x8e:
+                let addr = getOpperandAddress(opcode.mode)
+                memWrite(addr, data: register_x)
+            case 0x84, 0x94, 0x8c:
+                let addr = getOpperandAddress(opcode.mode)
+                memWrite(addr, data: register_y)
+            case 0xa2, 0xa6, 0xb6, 0xae, 0xbe:
+                ldx(opcode.mode)
+            case 0xa0, 0xa4, 0xb4, 0xac, 0xbc:
+                ldy(opcode.mode)
+            case 0xea:
+                continue
+            case 0xa8:
+                register_y = register_x
+                updateZeroAndNegativeFlags(register_y)
+            case 0xba:
+                register_x = stackPointer
+                updateZeroAndNegativeFlags(register_x)
+            case 0x8a:
+                register_a = register_x
+                updateZeroAndNegativeFlags(register_a)
+            case 0x9a:
+                stackPointer = register_x
+            case 0x98:
+                register_a = register_y
+                updateZeroAndNegativeFlags(register_a)
             /// TAX
-            case 0xAA:
+            case 0xaa:
                 tax()
             /// INX
-            case 0xE8:
+            case 0xe8:
                 inx()
             /// BRK
             case 0x00:
@@ -143,40 +284,136 @@ class CPU {
 
     func updateZeroAndNegativeFlags(_ result: UInt8) {
         if result == 0 {
-            status = status | 0b0000_0010
+            status.insert(.zero)
         } else {
-            status = status & 0b1111_1101
+            status.remove(.zero)
         }
 
         if result & 0b1000_0000 != 0 {
-            status = status | 0b1000_0000
+            status.insert(.negative)
         } else {
-            status = status & 0b0111_1111
+            status.remove(.negative)
         }
     }
 
-    func lda(_ mode: AddressingMode) {
-        let addr = getOpperandAddress(mode)
-        let value = memRead(addr)
-
+    func setRegisterA(_ value: UInt8) {
         register_a = value
         updateZeroAndNegativeFlags(register_a)
     }
 
-    func tax() {
-        register_x = register_a
-        updateZeroAndNegativeFlags(register_x)
+    func setCarryFlag() {
+        status.insert(.carry)
     }
 
-    func inx() {
-        register_x = register_x &+ 1
-        updateZeroAndNegativeFlags(register_x)
+    func clearCarryFlag() {
+        status.remove(.carry)
     }
 
-    func sta(_ mode: AddressingMode) {
+    /// note: ignoring decimal mode
+    /// http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
+    func addToRegisterA(_ data: UInt8) {
+        let shouldCarry = status.contains(.carry) ? 1 : 0
+        let sum = UInt16(register_a) + UInt16(data) + UInt16(shouldCarry)
+
+        let carry = sum > 0xff
+
+        if carry {
+            status.insert(.carry)
+        } else {
+            status.remove(.carry)
+        }
+
+        let result = UInt8(sum)
+
+        if (data ^ result) & (result ^ register_a) & 0x80 != 0 {
+            status.insert(.overflow)
+        } else {
+            status.remove(.overflow)
+        }
+
+        setRegisterA(result)
+    }
+
+    func stackPop() -> UInt8 {
+        stackPointer = stackPointer &+ 1
+        return memRead(STACK + UInt16(stackPointer))
+    }
+
+    func stackPush(_ data: UInt8) {
+        memWrite(STACK + UInt16(stackPointer), data: data)
+        stackPointer = stackPointer &- 1
+    }
+
+    func stackPopU16() -> UInt16 {
+        let lo = UInt16(stackPop())
+        let hi = UInt16(stackPop())
+
+        return hi << 8 | lo
+    }
+
+    func stackPushU16(_ data: UInt16) {
+        let hi = UInt8(data >> 8)
+        let lo = UInt8(data & 0xff)
+        stackPush(hi)
+        stackPush(lo)
+    }
+
+    func compare(mode: AddressingMode, compare_with: UInt8) {
         let addr = getOpperandAddress(mode)
-        memWrite(addr: addr, data: register_a)
+        let data = memRead(addr)
+        if data <= compare_with {
+            status.insert(.carry)
+        } else {
+            status.remove(.carry)
+        }
+
+        updateZeroAndNegativeFlags(compare_with &- data)
     }
 
+    func branch(_ condition: Bool) {
+        if condition {
+            let addr = memRead(programCounter)
+            // print(addr)
+            let jump: Int8 = Int8(bitPattern: addr)
+            let jump_addr = programCounter &+ 1 &+ UInt16(bitPattern: Int16(jump))
 
+            programCounter = jump_addr
+        }
+    }
+}
+
+extension CPU: Memory {
+    func memRead(_ addr: UInt16) -> UInt8 {
+        memory[Int(addr)]
+    }
+
+    func memWrite(_ addr: UInt16, data: UInt8) {
+        memory[Int(addr)] = data
+    }
+}
+
+
+protocol Memory {
+    func memRead(_ addr: UInt16) -> UInt8
+
+    func memWrite(_ addr: UInt16, data: UInt8)
+
+    func memReadU16(_ addr: UInt16) -> UInt16
+
+    func memWriteU16(_ addr: UInt16, data: UInt16)
+}
+
+extension Memory {
+    func memReadU16(_ addr: UInt16) -> UInt16 {
+        let lo = UInt16(memRead(addr))
+        let hi = UInt16(memRead(addr + 1))
+        return (hi << 8) | lo
+    }
+
+    func memWriteU16(_ addr: UInt16, data: UInt16) {
+        let hi = UInt8(data >> 8)
+        let lo = UInt8(data & 0xff)
+        self.memWrite(addr, data: lo)
+        self.memWrite(addr + 1, data: hi)
+    }
 }

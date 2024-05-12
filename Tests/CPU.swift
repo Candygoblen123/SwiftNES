@@ -7,13 +7,13 @@ class CPUTests: XCTestCase {
         cpu.loadAndRun([0xa9, 0x05, 0x00])
 
         XCTAssertEqual(cpu.register_a, 0x05)
-        XCTAssert(cpu.status & 0b0000_0010 == 0b00)
-        XCTAssert(cpu.status & 0b1000_0000 == 0)
+        XCTAssert(cpu.status.rawValue & 0b0000_0010 == 0b00)
+        XCTAssert(cpu.status.rawValue & 0b1000_0000 == 0)
     }
 
     func test_lda_from_memory() {
         let cpu = CPU()
-        cpu.memWrite(addr: 0x10, data: 0x55)
+        cpu.memWrite(0x10, data: 0x55)
 
         cpu.loadAndRun([0xa5, 0x10, 0x00])
 
@@ -23,13 +23,13 @@ class CPUTests: XCTestCase {
     func test_0xa9_lda_zero_flag() {
         let cpu = CPU()
         cpu.loadAndRun([0xa9, 0x00, 0x00])
-        XCTAssert(cpu.status & 0b0000_0010 == 0b10)
+        XCTAssert(cpu.status.rawValue & 0b0000_0010 == 0b10)
     }
 
     func test_0xa9_lda_neg_flag() {
         let cpu = CPU()
         cpu.loadAndRun([0xa9, 0xFF, 0x00])
-        XCTAssert(cpu.status & 0b1000_0000 == 0b1000_0000)
+        XCTAssert(cpu.status.rawValue & 0b1000_0000 == 0b1000_0000)
     }
 
     func test_0xaa_tax_move_a_to_x() {
