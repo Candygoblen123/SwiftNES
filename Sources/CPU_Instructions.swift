@@ -61,8 +61,8 @@ extension CPU {
     func sbc(_ mode: AddressingMode) {
         let addr = getOpperandAddress(mode)
         let data = memRead(addr)
-        let res = Int8(data) &* -1
-        addToRegisterA(UInt8(res &- 1))
+        let res = Int8(bitPattern: data) &* -1
+        addToRegisterA(UInt8(bitPattern: res &- 1))
     }
 
     func adc(_ mode: AddressingMode) {
