@@ -124,7 +124,7 @@ cpu.reset()
 var screenState = [UInt8](repeating: 0, count: 32 * 3 * 32)
 var rng = SystemRandomNumberGenerator()
 
-cpu.run() {
+cpu.run(onCycle: {
     handleUserInput(cpu, event: &event)
     cpu.memWrite(0xfe, data: UInt8.random(in: 1...16, using: &rng))
 
@@ -133,7 +133,11 @@ cpu.run() {
         SDL_RenderCopy(canvas, texture, nil, nil)
         SDL_RenderPresent(canvas)
     }
-}
+}, onComplete: {
+    SDL_DestroyWindow(window)
+    SDL_Quit()
+    exit(0)
+})
 
 // Infinite loop otherwise the program will exit prematurely
 RunLoop.main.run()

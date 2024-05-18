@@ -103,18 +103,20 @@ class CPU {
     }
 
     func run() {
-        run {}
+        run(onCycle: {}, onComplete: {})
     }
 
-    func run(callback: @escaping () -> ()) {
+    func run(onCycle: @escaping () -> (), onComplete: @escaping () -> ())  {
         let opcodes = OPCODES_MAP
         Timer.scheduledTimer(withTimeInterval: 0.00007, repeats: true) { [self] timer in
-            processOpcodes(callback: callback, opcodes: opcodes, timer: timer)
+            processOpcodes(onCycle: onCycle, opcodes: opcodes, timer: timer) {
+                onComplete()
+            }
         }
     }
 
-    func processOpcodes(callback: () -> (), opcodes: [UInt8: OpCode], timer: Timer) {
-        callback()
+    func processOpcodes(onCycle: () -> (), opcodes: [UInt8: OpCode], timer: Timer, onComplete: () -> ()) {
+        onCycle()
         let code = memRead(programCounter)
         programCounter += 1
 
@@ -278,9 +280,7 @@ class CPU {
         /// BRK
         case 0x00:
             timer.invalidate()
-            SDL_DestroyWindow(window)
-            SDL_Quit()
-            exit(0)
+            onComplete()
         default: fatalError("TODO!")
         }
 
