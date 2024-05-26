@@ -214,6 +214,133 @@ class CPUTests: XCTestCase {
         XCTAssertEqual(cpu.register_a, 0b0100_1100)
     }
 
+    func test_ror() {
+        let cpu = CPU()
+        cpu.load([0x66, 0x10, 0x00])
+        cpu.reset()
+        cpu.memWrite(0x10, data: 0b1001_1001)
+        cpu.runExpect(self)
+        XCTAssertEqual(cpu.memRead(0x10), 0b0100_1100)
+    }
+
+    func test_inc() {
+        let cpu = CPU()
+        cpu.memWrite(0x10, data: 0x10)
+        cpu.load([0xe6, 0x10, 0x00])
+        cpu.reset()
+        cpu.runExpect(self)
+        XCTAssertEqual(cpu.memRead(0x10), 0x11)
+    }
+
+    func test_inc_overflow() {
+        let cpu = CPU()
+        cpu.load([0xe6, 0x10, 0xe6, 0x10, 0x00])
+        cpu.memWrite(0x10, data: 0xff)
+        cpu.reset()
+        cpu.runExpect(self)
+        XCTAssertEqual(cpu.memRead(0x10), 0x01)
+    }
+
+    func test_dey() {
+        let cpu = CPU()
+        cpu.load([0x88, 0x00])
+        cpu.reset()
+        cpu.register_y = 0x10
+        cpu.runExpect(self)
+        XCTAssertEqual(cpu.register_y, 0x0f)
+    }
+
+    func test_dey_underflow() {
+        let cpu = CPU()
+        cpu.load([0x88, 0x88, 0x00])
+        cpu.reset()
+        cpu.runExpect(self)
+        XCTAssertEqual(cpu.register_y, 0xfe)
+
+    }
+
+    func test_dex() {
+        let cpu = CPU()
+        cpu.load([0xca, 0x00])
+        cpu.reset()
+        cpu.register_x = 0x10
+        cpu.runExpect(self)
+        XCTAssertEqual(cpu.register_x, 0x0f)
+    }
+
+    func test_dex_underflow() {
+        let cpu = CPU()
+        cpu.load([0xca, 0xca, 0x00])
+        cpu.reset()
+        cpu.runExpect(self)
+        XCTAssertEqual(cpu.register_x, 0xfe)
+    }
+
+    func test_dec() {
+        let cpu = CPU()
+        cpu.load([0xc6, 0x10, 0x00])
+        cpu.memWrite(0x10, data: 0x10)
+        cpu.reset()
+        cpu.runExpect(self)
+        XCTAssertEqual(cpu.memRead(0x10), 0x0f)
+    }
+
+    func test_dec_underflow() {
+        let cpu = CPU()
+        cpu.load([0xc6, 0x10, 0xc6, 0x10, 0x00])
+        cpu.memWrite(0x10, data: 0x00)
+        cpu.reset()
+        cpu.runExpect(self)
+        XCTAssertEqual(cpu.memRead(0x10), 0xfe)
+    }
+
+    func test_pla() {
+        let cpu = CPU()
+        cpu.load([0x68, 0x00])
+        cpu.reset()
+        cpu.stackPush(0x10)
+        cpu.runExpect(self)
+        XCTAssertEqual(cpu.register_a, 0x10)
+    }
+
+    func test_plp() {
+        let cpu = CPU()
+        cpu.load([0x28, 0x00])
+        cpu.reset()
+        cpu.stackPush(CPUFlags([.interruptDisable, .carry, .decimalMode, .break1, .break2]).rawValue)
+        cpu.runExpect(self)
+        XCTAssertEqual(cpu.status, CPUFlags([.interruptDisable, .carry, .decimalMode]))
+    }
+
+    func test_php() {
+        let cpu = CPU()
+        cpu.load([0x08, 0x00])
+        cpu.reset()
+        cpu.status = CPUFlags(arrayLiteral: [.interruptDisable, .carry, .decimalMode])
+        cpu.runExpect(self)
+        XCTAssertEqual(cpu.stackPop(), CPUFlags([.interruptDisable, .carry, .decimalMode, .break1, .break2]).rawValue)
+    }
+
+    func test_bit_zero() {
+        let cpu = CPU()
+        cpu.load([0x24, 0x10, 0x00])
+        cpu.reset()
+        cpu.register_a = 0b0001
+        cpu.memWrite(0x10, data: 0b1000)
+        cpu.runExpect(self)
+        XCTAssert(cpu.status.contains(.zero))
+    }
+
+    func test_bit_nonzero() {
+        let cpu = CPU()
+        cpu.load([0x24, 0x10, 0x00])
+        cpu.reset()
+        cpu.register_a = 0b1000
+        cpu.memWrite(0x10, data: 0b1001)
+        cpu.runExpect(self)
+        XCTAssert(!cpu.status.contains(.zero))
+    }
+
     func test_5_ops_working_together() {
         let cpu = CPU()
         cpu.load([0xa9, 0xc0, 0xaa, 0xe8, 0x00])
