@@ -37,7 +37,7 @@ class CPU {
     var stackPointer: UInt8 = STACK_RESET
     var status: CPUFlags = [.interruptDisable, .break2]
     var programCounter: UInt16 = 0
-    private var memory = [UInt8](repeating: 0, count: 0xFFFF)
+    var bus = Bus()
 
 
     func getOpperandAddress(_ mode: AddressingMode) -> UInt16 {
@@ -98,7 +98,7 @@ class CPU {
     }
 
     func load(_ program: [UInt8]) {
-        memory[0x0600 ..< (0x0600 + program.count)] = program[0..<program.count]
+        //memory[0x0600 ..< (0x0600 + program.count)] = program[0..<program.count]
         memWriteU16(0xFFFC, data: 0x0600)
     }
 
@@ -108,7 +108,7 @@ class CPU {
 
     func run(onCycle: @escaping () -> (), onComplete: @escaping () -> ())  {
         let opcodes = OPCODES_MAP
-        Timer.scheduledTimer(withTimeInterval: 0.00007, repeats: true) { [self] timer in
+        _ = Timer.scheduledTimer(withTimeInterval: 0.00007, repeats: true) { [self] timer in
             processOpcodes(onCycle: onCycle, opcodes: opcodes, timer: timer) {
                 onComplete()
             }
@@ -390,11 +390,19 @@ class CPU {
 
 extension CPU: Memory {
     func memRead(_ addr: UInt16) -> UInt8 {
-        memory[Int(addr)]
+        return bus.memRead(addr)
     }
 
     func memWrite(_ addr: UInt16, data: UInt8) {
-        memory[Int(addr)] = data
+        bus.memWrite(addr, data: data)
+    }
+
+    func memReadU16(_ addr: UInt16) -> UInt16 {
+        return bus.memReadU16(addr)
+    }
+
+    func memWriteU16(_ addr: UInt16, data: UInt16) {
+        bus.memWriteU16(addr, data: data)
     }
 }
 
