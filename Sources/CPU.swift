@@ -37,7 +37,7 @@ class CPU {
     var stackPointer: UInt8 = STACK_RESET
     var status: CPUFlags = [.interruptDisable, .break2]
     var programCounter: UInt16 = 0
-    var bus = Bus()
+    var bus: Bus?
 
 
     func getOpperandAddress(_ mode: AddressingMode) -> UInt16 {
@@ -99,6 +99,7 @@ class CPU {
 
     func load(_ program: [UInt8]) {
         //memory[0x0600 ..< (0x0600 + program.count)] = program[0..<program.count]
+        bus = Bus(try! Rom(program))
         memWriteU16(0xFFFC, data: 0x0600)
     }
 
@@ -390,19 +391,19 @@ class CPU {
 
 extension CPU: Memory {
     func memRead(_ addr: UInt16) -> UInt8 {
-        return bus.memRead(addr)
+        return bus!.memRead(addr)
     }
 
     func memWrite(_ addr: UInt16, data: UInt8) {
-        bus.memWrite(addr, data: data)
+        bus!.memWrite(addr, data: data)
     }
 
     func memReadU16(_ addr: UInt16) -> UInt16 {
-        return bus.memReadU16(addr)
+        return bus!.memReadU16(addr)
     }
 
     func memWriteU16(_ addr: UInt16, data: UInt16) {
-        bus.memWriteU16(addr, data: data)
+        bus!.memWriteU16(addr, data: data)
     }
 }
 

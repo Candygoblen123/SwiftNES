@@ -8,7 +8,7 @@ struct Rom {
     var screenMirror: Mirroring
 
     init(_ raw: [UInt8]) throws {
-        guard raw[0...4] == [0x4E, 0x45, 0x53, 0x1A] else { throw HeaderParseError.notINES("File is not in iNES file format.") }
+        guard raw[0..<4] == [0x4E, 0x45, 0x53, 0x1A] else { throw HeaderParseError.notINES("File is not in iNES file format.") }
         mapper = (raw[7] & 0b1111_0000) | (raw[6] >> 4)
 
         let inesVer = (raw[7] >> 2) & 0b11
@@ -33,8 +33,8 @@ struct Rom {
         let programStart = 16 + (skipTrainer ? 512 : 0)
         let characterStart = programStart + programSize
 
-        program = Array(raw[programStart...(programStart + programSize)])
-        character = Array(raw[characterStart...(characterStart + characterSize)])
+        program = Array(raw[programStart..<(programStart + programSize)])
+        character = Array(raw[characterStart..<(characterStart + characterSize)])
     }
 }
 
