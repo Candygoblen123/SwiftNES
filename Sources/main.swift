@@ -94,7 +94,7 @@ func readScreenState(_ cpu: CPU, frame: inout [UInt8]) -> Bool {
     return update
 }
 
-guard let rom = NSData(contentsOfFile: "nestest.nes") else { fatalError("Rom not found") }
+guard let rom = NSData(contentsOfFile: "snake.nes") else { fatalError("Rom not found") }
 var gameCode = [UInt8](repeating: 0, count: rom.length)
 rom.getBytes(&gameCode, length: rom.length)
 
@@ -103,20 +103,22 @@ let bus = Bus(try! Rom(gameCode))
 var cpu = CPU(bus: bus)
 //cpu.load(gameCode)
 cpu.reset()
-cpu.programCounter = 0xC000
+//cpu.programCounter = 0xC000
 
 var screenState = [UInt8](repeating: 0, count: 32 * 3 * 32)
 var rng = SystemRandomNumberGenerator()
 cpu.run(onCycle: {
-    print(dumpCpuState(cpu))
+    //print(dumpCpuState(cpu))
     handleUserInput(cpu, event: &event)
-    //cpu.memWrite(0xfe, data: UInt8.random(in: 1...16, using: &rng))
+    cpu.memWrite(0xfe, data: UInt8.random(in: 1...16, using: &rng))
 
     if readScreenState(cpu, frame: &screenState) {
         SDL_UpdateTexture(texture, nil, screenState, 32 * 3)
         SDL_RenderCopy(canvas, texture, nil, nil)
         SDL_RenderPresent(canvas)
     }
+
+    usleep(70)
 }, onComplete: {
     SDL_DestroyWindow(window)
     SDL_Quit()

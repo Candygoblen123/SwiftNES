@@ -124,14 +124,16 @@ class CPU {
 
     func run(onCycle: @escaping () -> (), onComplete: @escaping () -> ())  {
         let opcodes = OPCODES_MAP
-        _ = Timer.scheduledTimer(withTimeInterval: 0.00007, repeats: true) { [self] timer in
-            processOpcodes(onCycle: onCycle, opcodes: opcodes, timer: timer) {
+        //_ = Timer.scheduledTimer(withTimeInterval: 0.00007, repeats: true) { [self] timer in
+        while true {
+            processOpcodes(onCycle: onCycle, opcodes: opcodes) {
                 onComplete()
             }
         }
+        //}
     }
 
-    func processOpcodes(onCycle: () -> (), opcodes: [UInt8: OpCode], timer: Timer, onComplete: () -> ()) {
+    func processOpcodes(onCycle: () -> (), opcodes: [UInt8: OpCode], onComplete: () -> ()) {
         onCycle()
         let code = memRead(programCounter)
         programCounter += 1
@@ -295,7 +297,7 @@ class CPU {
             inx()
         /// BRK
         case 0x00:
-            timer.invalidate()
+            //timer.invalidate()
             onComplete()
         /// NOP Read
         case 0x04, 0x44, 0x64, 0x14, 0x34, 0x54, 0x74, 0xd4, 0xf4, 0x0c, 0x1c, 0x3c, 0x5c, 0x7c, 0xdc, 0xfc:
