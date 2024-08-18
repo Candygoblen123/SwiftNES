@@ -16,7 +16,7 @@ let CPU_OP_CODES: [OpCode] = [
     OpCode(code: 0x75, mnemonic: "ADC", len: 2, cycles: 4, mode: .ZeroPage_X),
     OpCode(code: 0x6d, mnemonic: "ADC", len: 3, cycles: 4, mode: .Absolute),
     OpCode(code: 0x7d, mnemonic: "ADC", len: 3, cycles: 4 /* +1 if page crossed */, mode: .Absolute_X),
-    OpCode(code: 0x79, mnemonic: "ADC", len: 2, cycles: 5 /* +1 if page crossed */, mode: .Absolute_Y),
+    OpCode(code: 0x79, mnemonic: "ADC", len: 3, cycles: 5 /* +1 if page crossed */, mode: .Absolute_Y),
     OpCode(code: 0x61, mnemonic: "ADC", len: 2, cycles: 5, mode: .Indirect_X),
     OpCode(code: 0x71, mnemonic: "ADC", len: 2, cycles: 5 /* +1 if page crossed */, mode: .Indirect_Y),
 
@@ -165,11 +165,11 @@ let CPU_OP_CODES: [OpCode] = [
     OpCode(code: 0x91, mnemonic: "STA", len: 2, cycles: 6, mode: .Indirect_Y),
 
     OpCode(code: 0x86, mnemonic: "STX", len: 2, cycles: 3, mode: .ZeroPage),
-    OpCode(code: 0x96, mnemonic: "STX", len: 2, cycles: 4, mode: .Absolute_Y),
+    OpCode(code: 0x96, mnemonic: "STX", len: 2, cycles: 4, mode: .ZeroPage_Y),
     OpCode(code: 0x8e, mnemonic: "STX", len: 3, cycles: 4, mode: .Absolute),
 
     OpCode(code: 0x84, mnemonic: "STY", len: 2, cycles: 3, mode: .ZeroPage),
-    OpCode(code: 0x94, mnemonic: "STY", len: 2, cycles: 4, mode: .Absolute_X),
+    OpCode(code: 0x94, mnemonic: "STY", len: 2, cycles: 4, mode: .ZeroPage_X),
     OpCode(code: 0x8c, mnemonic: "STY", len: 3, cycles: 4, mode: .Absolute),
 
     /// Flag Clears
@@ -193,6 +193,135 @@ let CPU_OP_CODES: [OpCode] = [
     OpCode(code: 0x68, mnemonic: "PLA", len: 1, cycles: 4, mode: .NoneAddressing),
     OpCode(code: 0x08, mnemonic: "PHP", len: 1, cycles: 3, mode: .NoneAddressing),
     OpCode(code: 0x28, mnemonic: "PLP", len: 1, cycles: 4, mode: .NoneAddressing),
+
+    /// Undocumented
+
+    OpCode(code: 0xc7, mnemonic: "*DCP", len: 2, cycles: 5, mode: .ZeroPage),
+    OpCode(code: 0xd7, mnemonic: "*DCP", len: 2, cycles: 6, mode: .ZeroPage_X),
+    OpCode(code: 0xCF, mnemonic: "*DCP", len: 3, cycles: 6, mode: .Absolute),
+    OpCode(code: 0xdF, mnemonic: "*DCP", len: 3, cycles: 7, mode: .Absolute_X),
+    OpCode(code: 0xdb, mnemonic: "*DCP", len: 3, cycles: 7, mode: .Absolute_Y),
+    OpCode(code: 0xd3, mnemonic: "*DCP", len: 2, cycles: 8, mode: .Indirect_Y),
+    OpCode(code: 0xc3, mnemonic: "*DCP", len: 2, cycles: 8, mode: .Indirect_X),
+
+
+    OpCode(code: 0x27, mnemonic: "*RLA", len: 2, cycles: 5, mode: .ZeroPage),
+    OpCode(code: 0x37, mnemonic: "*RLA", len: 2, cycles: 6, mode: .ZeroPage_X),
+    OpCode(code: 0x2F, mnemonic: "*RLA", len: 3, cycles: 6, mode: .Absolute),
+    OpCode(code: 0x3F, mnemonic: "*RLA", len: 3, cycles: 7, mode: .Absolute_X),
+    OpCode(code: 0x3b, mnemonic: "*RLA", len: 3, cycles: 7, mode: .Absolute_Y),
+    OpCode(code: 0x33, mnemonic: "*RLA", len: 2, cycles: 8, mode: .Indirect_Y),
+    OpCode(code: 0x23, mnemonic: "*RLA", len: 2, cycles: 8, mode: .Indirect_X),
+
+    OpCode(code: 0x07, mnemonic: "*SLO", len: 2, cycles: 5, mode: .ZeroPage),
+    OpCode(code: 0x17, mnemonic: "*SLO", len: 2, cycles: 6, mode: .ZeroPage_X),
+    OpCode(code: 0x0F, mnemonic: "*SLO", len: 3, cycles: 6, mode: .Absolute),
+    OpCode(code: 0x1f, mnemonic: "*SLO", len: 3, cycles: 7, mode: .Absolute_X),
+    OpCode(code: 0x1b, mnemonic: "*SLO", len: 3, cycles: 7, mode: .Absolute_Y),
+    OpCode(code: 0x03, mnemonic: "*SLO", len: 2, cycles: 8, mode: .Indirect_X),
+    OpCode(code: 0x13, mnemonic: "*SLO", len: 2, cycles: 8, mode: .Indirect_Y),
+
+    OpCode(code: 0x47, mnemonic: "*SRE", len: 2, cycles: 5, mode: .ZeroPage),
+    OpCode(code: 0x57, mnemonic: "*SRE", len: 2, cycles: 6, mode: .ZeroPage_X),
+    OpCode(code: 0x4F, mnemonic: "*SRE", len: 3, cycles: 6, mode: .Absolute),
+    OpCode(code: 0x5f, mnemonic: "*SRE", len: 3, cycles: 7, mode: .Absolute_X),
+    OpCode(code: 0x5b, mnemonic: "*SRE", len: 3, cycles: 7, mode: .Absolute_Y),
+    OpCode(code: 0x43, mnemonic: "*SRE", len: 2, cycles: 8, mode: .Indirect_X),
+    OpCode(code: 0x53, mnemonic: "*SRE", len: 2, cycles: 8, mode: .Indirect_Y),
+
+
+    OpCode(code: 0x80, mnemonic: "*NOP", len: 2, cycles: 2, mode: .Immediate),
+    OpCode(code: 0x82, mnemonic: "*NOP", len: 2, cycles: 2, mode: .Immediate),
+    OpCode(code: 0x89, mnemonic: "*NOP", len: 2, cycles: 2, mode: .Immediate),
+    OpCode(code: 0xc2, mnemonic: "*NOP", len: 2, cycles: 2, mode: .Immediate),
+    OpCode(code: 0xe2, mnemonic: "*NOP", len: 2, cycles: 2, mode: .Immediate),
+
+
+    OpCode(code: 0xCB, mnemonic: "*AXS", len: 2, cycles: 2, mode: .Immediate),
+
+    OpCode(code: 0x6B, mnemonic: "*ARR", len: 2, cycles: 2, mode: .Immediate),
+
+    OpCode(code: 0xeb, mnemonic: "*SBC", len: 2, cycles: 2, mode: .Immediate),
+
+    OpCode(code: 0x0b, mnemonic: "*ANC", len: 2, cycles: 2, mode: .Immediate),
+    OpCode(code: 0x2b, mnemonic: "*ANC", len: 2, cycles: 2, mode: .Immediate),
+
+    OpCode(code: 0x4b, mnemonic: "*ALR", len: 2, cycles: 2, mode: .Immediate),
+
+    OpCode(code: 0x04, mnemonic: "*NOP", len: 2, cycles: 3, mode: .ZeroPage),
+    OpCode(code: 0x44, mnemonic: "*NOP", len: 2, cycles: 3, mode: .ZeroPage),
+    OpCode(code: 0x64, mnemonic: "*NOP", len: 2, cycles: 3, mode: .ZeroPage),
+    OpCode(code: 0x14, mnemonic: "*NOP", len: 2, cycles: 4, mode: .ZeroPage_X),
+    OpCode(code: 0x34, mnemonic: "*NOP", len: 2, cycles: 4, mode: .ZeroPage_X),
+    OpCode(code: 0x54, mnemonic: "*NOP", len: 2, cycles: 4, mode: .ZeroPage_X),
+    OpCode(code: 0x74, mnemonic: "*NOP", len: 2, cycles: 4, mode: .ZeroPage_X),
+    OpCode(code: 0xd4, mnemonic: "*NOP", len: 2, cycles: 4, mode: .ZeroPage_X),
+    OpCode(code: 0xf4, mnemonic: "*NOP", len: 2, cycles: 4, mode: .ZeroPage_X),
+    OpCode(code: 0x0c, mnemonic: "*NOP", len: 3, cycles: 4, mode: .Absolute),
+    OpCode(code: 0x1c, mnemonic: "*NOP", len: 3, cycles: 4, mode: .Absolute_X),
+    OpCode(code: 0x3c, mnemonic: "*NOP", len: 3, cycles: 4, mode: .Absolute_X),
+    OpCode(code: 0x5c, mnemonic: "*NOP", len: 3, cycles: 4, mode: .Absolute_X),
+    OpCode(code: 0x7c, mnemonic: "*NOP", len: 3, cycles: 4, mode: .Absolute_X),
+    OpCode(code: 0xdc, mnemonic: "*NOP", len: 3, cycles: 4, mode: .Absolute_X),
+    OpCode(code: 0xfc, mnemonic: "*NOP", len: 3, cycles: 4, mode: .Absolute_X),
+
+    OpCode(code: 0x67, mnemonic: "*RRA", len: 2, cycles: 5, mode: .ZeroPage),
+    OpCode(code: 0x77, mnemonic: "*RRA", len: 2, cycles: 6, mode: .ZeroPage_X),
+    OpCode(code: 0x6f, mnemonic: "*RRA", len: 3, cycles: 6, mode: .Absolute),
+    OpCode(code: 0x7f, mnemonic: "*RRA", len: 3, cycles: 7, mode: .Absolute_X),
+    OpCode(code: 0x7b, mnemonic: "*RRA", len: 3, cycles: 7, mode: .Absolute_Y),
+    OpCode(code: 0x63, mnemonic: "*RRA", len: 2, cycles: 8, mode: .Indirect_X),
+    OpCode(code: 0x73, mnemonic: "*RRA", len: 2, cycles: 8, mode: .Indirect_Y),
+
+
+    OpCode(code: 0xe7, mnemonic: "*ISB", len: 2, cycles: 5, mode: .ZeroPage),
+    OpCode(code: 0xf7, mnemonic: "*ISB", len: 2, cycles: 6, mode: .ZeroPage_X),
+    OpCode(code: 0xef, mnemonic: "*ISB", len: 3, cycles: 6, mode: .Absolute),
+    OpCode(code: 0xff, mnemonic: "*ISB", len: 3, cycles: 7, mode: .Absolute_X),
+    OpCode(code: 0xfb, mnemonic: "*ISB", len: 3, cycles: 7, mode: .Absolute_Y),
+    OpCode(code: 0xe3, mnemonic: "*ISB", len: 2, cycles: 8, mode: .Indirect_X),
+    OpCode(code: 0xf3, mnemonic: "*ISB", len: 2, cycles: 8, mode: .Indirect_Y),
+
+    OpCode(code: 0x02, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0x12, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0x22, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0x32, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0x42, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0x52, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0x62, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0x72, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0x92, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0xb2, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0xd2, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0xf2, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+
+    OpCode(code: 0x1a, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0x3a, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0x5a, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0x7a, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0xda, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+    OpCode(code: 0xfa, mnemonic: "*NOP", len: 1, cycles: 2, mode: .NoneAddressing),
+
+    OpCode(code: 0xab, mnemonic: "*LXA", len: 2, cycles: 3, mode: .Immediate), //todo: highly unstable and not used
+    OpCode(code: 0x8b, mnemonic: "*XAA", len: 2, cycles: 3, mode: .Immediate), //todo: highly unstable and not used
+    OpCode(code: 0xbb, mnemonic: "*LAS", len: 3, cycles: 2, mode: .Absolute_Y), //todo: highly unstable and not used
+    OpCode(code: 0x9b, mnemonic: "*TAS", len: 3, cycles: 2, mode: .Absolute_Y), //todo: highly unstable and not used
+    OpCode(code: 0x93, mnemonic: "*AHX", len: 2, cycles: 8, mode: .Indirect_Y), //todo: highly unstable and not used
+    OpCode(code: 0x9f, mnemonic: "*AHX", len: 3, cycles: 4, mode: .Absolute_Y), //todo: highly unstable and not used
+    OpCode(code: 0x9e, mnemonic: "*SHX", len: 3, cycles: 4, mode: .Absolute_Y), //todo: highly unstable and not used
+    OpCode(code: 0x9c, mnemonic: "*SHY", len: 3, cycles: 4, mode: .Absolute_X), //todo: highly unstable and not used
+
+    OpCode(code: 0xa7, mnemonic: "*LAX", len: 2, cycles: 3, mode: .ZeroPage),
+    OpCode(code: 0xb7, mnemonic: "*LAX", len: 2, cycles: 4, mode: .ZeroPage_Y),
+    OpCode(code: 0xaf, mnemonic: "*LAX", len: 3, cycles: 4, mode: .Absolute),
+    OpCode(code: 0xbf, mnemonic: "*LAX", len: 3, cycles: 4, mode: .Absolute_Y),
+    OpCode(code: 0xa3, mnemonic: "*LAX", len: 2, cycles: 6, mode: .Indirect_X),
+    OpCode(code: 0xb3, mnemonic: "*LAX", len: 2, cycles: 5, mode: .Indirect_Y),
+
+    OpCode(code: 0x87, mnemonic: "*SAX", len: 2, cycles: 3, mode: .ZeroPage),
+    OpCode(code: 0x97, mnemonic: "*SAX", len: 2, cycles: 4, mode: .ZeroPage_Y),
+    OpCode(code: 0x8f, mnemonic: "*SAX", len: 3, cycles: 4, mode: .Absolute),
+    OpCode(code: 0x83, mnemonic: "*SAX", len: 2, cycles: 6, mode: .Indirect_X),
 ]
 
 let OPCODES_MAP: [UInt8: OpCode] = {

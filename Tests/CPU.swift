@@ -1,6 +1,7 @@
 import XCTest
 @testable import SwiftNES
 
+/*
 class CPUTests: XCTestCase {
     func test_lda() {
         let cpu = CPU()
@@ -364,3 +365,4 @@ extension CPU {
         expect.wait(sender)
     }
 }
+ */

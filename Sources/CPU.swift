@@ -37,46 +37,57 @@ class CPU {
     var stackPointer: UInt8 = STACK_RESET
     var status: CPUFlags = [.interruptDisable, .break2]
     var programCounter: UInt16 = 0
-    var bus: Bus?
+    var bus: Bus
+
+    init(bus: Bus) {
+        self.bus = bus
+    }
 
 
     func getOpperandAddress(_ mode: AddressingMode) -> UInt16 {
         switch mode {
         case .Immediate:
             return programCounter
+        default:
+            return getAbsoluteAddress(mode, addr: programCounter)
+        }
+    }
+
+    func getAbsoluteAddress(_ mode: AddressingMode, addr: UInt16) -> UInt16 {
+        switch mode {
         case .ZeroPage:
-            return UInt16(memRead(programCounter))
+            return UInt16(memRead(addr))
         case .Absolute:
-            return memReadU16(programCounter)
+            return memReadU16(addr)
         case .ZeroPage_X:
-            let pos = memRead(programCounter)
+            let pos = memRead(addr)
             let addr = pos &+ register_x
             return UInt16(addr)
         case .ZeroPage_Y:
-            let pos = memRead(programCounter)
+            let pos = memRead(addr)
             let addr = pos &+ register_y
             return UInt16(addr)
         case .Absolute_X:
-            let base = memReadU16(programCounter)
+            let base = memReadU16(addr)
             return base &+ UInt16(register_x)
         case .Absolute_Y:
-            let base = memReadU16(programCounter)
+            let base = memReadU16(addr)
             return base &+ UInt16(register_y)
         case .Indirect_X:
-            let base = memRead(programCounter)
+            let base = memRead(addr)
             let ptr = UInt8(base) &+ register_x
             let lo = memRead(UInt16(ptr))
             let hi = memRead(UInt16(ptr &+ 1))
             return UInt16(hi) << 8 | UInt16(lo)
         case .Indirect_Y:
-            let base = memRead(programCounter)
+            let base = memRead(addr)
 
             let lo = memRead(UInt16(base))
             let hi = memRead(UInt16(base &+ 1))
             let deref_base = UInt16(hi) << 8 | UInt16(lo)
             let deref = deref_base &+ UInt16(register_y)
             return deref
-        case .NoneAddressing:
+        default:
             fatalError("mode \(mode) is not implemented")
         }
     }
@@ -91,17 +102,21 @@ class CPU {
         programCounter = self.memReadU16(0xFFFC)
     }
 
-    func loadAndRun(_ program: [UInt8]) {
-        load(program)
-        reset()
-        run()
-    }
+    //func loadAndRun(_ program: [UInt8]) {
+        //load(program)
+        //reset()
+        //run()
+    //}
 
-    func load(_ program: [UInt8]) {
+    //func load(_ program: [UInt8]) {
+        //bus = Bus(try! Rom(program))
+        //for i in 0..<program.count {
+            //memWrite(0x8000 + UInt16(i), data: program[i])
+        //}
         //memory[0x0600 ..< (0x0600 + program.count)] = program[0..<program.count]
-        bus = Bus(try! Rom(program))
-        memWriteU16(0xFFFC, data: 0x0600)
-    }
+
+        //memWriteU16(0xFFFC, data: 0x0600)
+    //}
 
     func run() {
         run(onCycle: {}, onComplete: {})
@@ -208,7 +223,7 @@ class CPU {
             let indirectRef: UInt16
             if memAddr & 0x00ff == 0x00ff {
                 let lo = memRead(memAddr)
-                let hi = memRead(memAddr & 0x00ff)
+                let hi = memRead(memAddr & 0xff00)
                 indirectRef = UInt16(hi) << 8 | UInt16(lo)
             } else {
                 indirectRef = memReadU16(memAddr)
@@ -225,7 +240,7 @@ class CPU {
         case 0x40:
             status.rawValue = stackPop()
             status.remove(.break1)
-            status.remove(.break2)
+            status.insert(.break2)
 
             programCounter = stackPopU16()
         case 0xd0:
@@ -259,7 +274,7 @@ class CPU {
         case 0xea:
             return
         case 0xa8:
-            register_y = register_x
+            register_y = register_a
             updateZeroAndNegativeFlags(register_y)
         case 0xba:
             register_x = stackPointer
@@ -282,6 +297,67 @@ class CPU {
         case 0x00:
             timer.invalidate()
             onComplete()
+        /// NOP Read
+        case 0x04, 0x44, 0x64, 0x14, 0x34, 0x54, 0x74, 0xd4, 0xf4, 0x0c, 0x1c, 0x3c, 0x5c, 0x7c, 0xdc, 0xfc:
+            let addr = getOpperandAddress(opcode.mode)
+            let _ = self.memRead(addr)
+            // Do nothing
+        /// NOP
+        case 0x1a, 0x3a, 0x5a, 0x7a, 0xda, 0xfa:
+            { /* Do Nothing */}() 
+        /// RRA
+        case 0x67, 0x77, 0x6f, 0x7f, 0x7b, 0x63, 0x73:
+            let data = ror(opcode.mode)
+            addToRegisterA(data)
+        /// ISB
+        case 0xe7, 0xf7, 0xef, 0xff, 0xfb, 0xe3, 0xf3:
+            let data = inc(opcode.mode)
+            subFromRegisterA(data)
+        /// SKB
+        case 0x80, 0x82, 0x89, 0xc2, 0xe2:
+            { /* 2 byte NOP immediate, do nothing */ }()
+        /// LAX
+        case 0xa7, 0xb7, 0xaf, 0xbf, 0xa3, 0xb3:
+            let addr = getOpperandAddress(opcode.mode)
+            let data = memRead(addr)
+            setRegisterA(data)
+            register_x = register_a
+        /// SAX
+        case 0x87, 0x97, 0x8f, 0x83:
+            let data = register_a & register_x
+            let addr = getOpperandAddress(opcode.mode)
+            memWrite(addr, data: data)
+        // Unoffical SBC
+        case 0xeb:
+            let addr = getOpperandAddress(opcode.mode)
+            let data = self.memRead(addr)
+            subFromRegisterA(data)
+        /// DCP
+        case 0xc7, 0xd7, 0xCF, 0xdF, 0xdb, 0xd3, 0xc3:
+            let addr = getOpperandAddress(opcode.mode)
+            var data = memRead(addr)
+            data = data &- 1
+            memWrite(addr, data: data)
+            if data <= register_a {
+                status.insert(.carry)
+            }
+            let tmp = register_a &- data
+            updateZeroAndNegativeFlags(tmp)
+        /// SLO
+        case 0x07, 0x17, 0x0F, 0x1f, 0x1b, 0x03, 0x13:
+            let data = asl(opcode.mode)
+            orWithRegisterA(data)
+        /// RLA
+        case 0x27, 0x37, 0x2F, 0x3F, 0x3b, 0x33, 0x23:
+            let data = rol(opcode.mode)
+            andWithRegisterA(data)
+        /// SRE
+        case 0x47, 0x57, 0x4F, 0x5f, 0x5b, 0x43, 0x53:
+            let data = lsr(opcode.mode)
+            xorWithRegisterA(data)
+
+
+
         default: fatalError("TODO!")
         }
 
@@ -342,6 +418,22 @@ class CPU {
         setRegisterA(result)
     }
 
+    func subFromRegisterA(_ data: UInt8) {
+        addToRegisterA(UInt8(bitPattern: (Int8(bitPattern: data) &* -1) &- 1))
+    }
+
+    func orWithRegisterA(_ data: UInt8) {
+        setRegisterA(data | self.register_a)
+    }
+
+    func xorWithRegisterA(_ data: UInt8) {
+        setRegisterA(data ^ self.register_a)
+    }
+
+    func andWithRegisterA(_ data: UInt8) {
+        setRegisterA(data & register_a)
+    }
+
     func stackPop() -> UInt8 {
         stackPointer = stackPointer &+ 1
         return memRead(STACK + UInt16(stackPointer))
@@ -391,19 +483,19 @@ class CPU {
 
 extension CPU: Memory {
     func memRead(_ addr: UInt16) -> UInt8 {
-        return bus!.memRead(addr)
+        return bus.memRead(addr)
     }
 
     func memWrite(_ addr: UInt16, data: UInt8) {
-        bus!.memWrite(addr, data: data)
+        bus.memWrite(addr, data: data)
     }
 
     func memReadU16(_ addr: UInt16) -> UInt16 {
-        return bus!.memReadU16(addr)
+        return bus.memReadU16(addr)
     }
 
     func memWriteU16(_ addr: UInt16, data: UInt16) {
-        bus!.memWriteU16(addr, data: data)
+        bus.memWriteU16(addr, data: data)
     }
 }
 

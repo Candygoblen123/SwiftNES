@@ -227,7 +227,7 @@ extension CPU {
     func plp() {
         status.rawValue = stackPop()
         status.remove(.break1)
-        status.remove(.break2)
+        status.insert(.break2)
     }
 
     func php() {
