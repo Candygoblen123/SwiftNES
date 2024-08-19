@@ -1,6 +1,7 @@
 class Bus {
     var cpuVram: [UInt8] = .init(repeating: 0, count: 2048)
-    var rom: Rom
+    var prgRom: [UInt8]
+    var ppu: NesPPU
 
     fileprivate let RAM : UInt16 = 0x0000
     fileprivate let RAM_MIRRORS_END: UInt16 = 0x1FFF
@@ -10,7 +11,8 @@ class Bus {
     fileprivate let ROM_ADDRESS_END: UInt16 = 0xFFFF
 
     init(_ rom: Rom) {
-        self.rom = rom
+        ppu = NesPPU(rom.character, rom.screenMirror)
+        self.prgRom = rom.program
     }
 }
 
@@ -21,9 +23,17 @@ extension Bus: Memory {
         case RAM...RAM_MIRRORS_END:
             let mirrorDownAddr = addr & 0b00000111_11111111
             return self.cpuVram[Int(mirrorDownAddr)]
-        case PPU_REGISTERS...PPU_REGISTERS_MIRRORS_END:
+        case 0x2000, 0x2001, 0x2003, 0x2005, 0x2006, 0x4014:
+            fatalError("Attempt to read from write-only PPU address \(addr)")
+        case 0x2002:
+            return ppu.readStatus()
+        case 0x2004:
+            return ppu.readOamData()
+        case 0x2007:
+            return ppu.readData()
+        case 0x2008...PPU_REGISTERS_MIRRORS_END:
             let mirrorDownAddr = addr & 0b00100000_00000111;
-            fatalError("PPU not implemented yet")
+            return self.memRead(mirrorDownAddr)
         case ROM_ADDRESS_START...ROM_ADDRESS_END:
             return readProgramRom(addr)
         default:
@@ -37,9 +47,27 @@ extension Bus: Memory {
         case RAM...RAM_MIRRORS_END:
             let mirrorDownAddr = addr & 0b11111111111
             self.cpuVram[Int(mirrorDownAddr)] = data
-        case PPU_REGISTERS...PPU_REGISTERS_MIRRORS_END:
+        case 0x2000:
+            ppu.writeToCtrl(data)
+        case 0x2001:
+            ppu.writeToMask(data)
+        case 0x2002:
+            fatalError("Attempt to write to PPU status register")
+        case 0x2003:
+            ppu.writeToOamAddr(data)
+        case 0x2004:
+            ppu.writeToOamData(data)
+        case 0x2005:
+            ppu.writeToScroll(data)
+        case 0x2006:
+            ppu.writeToPPUAddr(data)
+        case 0x2007:
+            ppu.writeToData(data)
+        case 0x2008...PPU_REGISTERS_MIRRORS_END:
             let mirrorDownAddr = addr & 0b00100000_00000111
-            fatalError("PPU is not implemented yet!")
+            memWrite(mirrorDownAddr, data: data)
+        case ROM_ADDRESS_START...ROM_ADDRESS_END:
+            fatalError("Attempt to write to Cartridge ROM space: \(addr)")
         default:
             print("Ignorming mem-write at \(addr)")
         }
@@ -47,10 +75,10 @@ extension Bus: Memory {
 
     func readProgramRom(_ addr: UInt16) -> UInt8 {
         var addr = addr - 0x8000
-        if rom.program.count == 0x4000 && addr >= 0x4000 {
+        if prgRom.count == 0x4000 && addr >= 0x4000 {
             // rom mirroring
             addr = addr % 0x4000
         }
-        return rom.program[Int(addr)]
+        return prgRom[Int(addr)]
     }
 }
