@@ -131,6 +131,7 @@ class CPU {
         status = [.interruptDisable, .break2]
 
         programCounter = self.memReadU16(0xFFFC)
+        print(programCounter)
     }
 
     //func loadAndRun(_ program: [UInt8]) {
@@ -150,13 +151,14 @@ class CPU {
     //}
 
     func run() {
-        run(onCycle: {}, onComplete: {})
+        run(onCycle: { print(dumpCpuState(self)) }, onComplete: {})
     }
 
     func run(onCycle: @escaping () -> (), onComplete: @escaping () -> ())  {
         let opcodes = OPCODES_MAP
         while true {
             if let _nmi = bus.pollNMI() {
+                
                 interrupt(.NMI)
             }
             processOpcodes(onCycle: onCycle, opcodes: opcodes) {

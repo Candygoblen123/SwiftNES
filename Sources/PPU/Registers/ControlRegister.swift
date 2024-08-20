@@ -38,4 +38,12 @@ struct ControlRegister: OptionSet {
     func generateVblankNMI() -> Bool {
         self.contains(.GENERATE_NMI)
     }
+
+    func backgroundPatternAddr() -> Int {
+        if self.contains(.BACKROUND_PATTERN_ADDR) {
+            0
+        } else {
+            0x1000
+        }
+    }
 }

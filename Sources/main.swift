@@ -100,14 +100,13 @@ bytes.getBytes(&gameCode, length: bytes.length)
 
 let rom = try Rom(gameCode)
 
-//let tileFrame = TileViewer.showTile(chrRom: rom.character, bank: 1, tileNum: 0)
-let tileFrame = TileViewer.showTileBank(chrRom: rom.character, bank: 1)
+var frame = Frame()
+let bus = Bus(rom) { ppu in
+    Render.render(ppu, frame: frame)
+    SDL_UpdateTexture(texture, nil, frame.data, 256 * 3)
+    SDL_RenderCopy(canvas, texture, nil, nil)
+    SDL_RenderPresent(canvas)
 
-SDL_UpdateTexture(texture, nil, tileFrame.data, 256 * 3)
-SDL_RenderCopy(canvas, texture, nil, nil)
-SDL_RenderPresent(canvas)
-
-while true {
     while SDL_PollEvent(&event) > 0 {
         if event.type == SDL_QUIT.rawValue {
              SDL_DestroyWindow(window)
@@ -126,6 +125,37 @@ while true {
         }
     }
 }
+
+let cpu = CPU(bus: bus)
+cpu.reset()
+cpu.run()
+
+// let tileFrame = TileViewer.showTile(chrRom: rom.character, bank: 1, tileNum: 0)
+// let tileFrame = TileViewer.showTileBank(chrRom: rom.character, bank: 1)
+
+// SDL_UpdateTexture(texture, nil, tileFrame.data, 256 * 3)
+// SDL_RenderCopy(canvas, texture, nil, nil)
+// SDL_RenderPresent(canvas)
+
+// while true {
+//     while SDL_PollEvent(&event) > 0 {
+//         if event.type == SDL_QUIT.rawValue {
+//              SDL_DestroyWindow(window)
+//              SDL_Quit()
+//              exit(0)
+//          }
+//         if event.type == SDL_KEYDOWN.rawValue {
+//             switch SDL_KeyCode(UInt32(event.key.keysym.sym)) {
+//             case SDLK_ESCAPE:
+//                 SDL_DestroyWindow(window)
+//                 SDL_Quit()
+//                 exit(0)
+//             default:
+//                 continue
+//             }
+//         }
+//     }
+// }
 
 // let bus = Bus(try! Rom(gameCode))
 

@@ -28,16 +28,16 @@ class NesPPU {
     func tick(_ cycles: UInt8) -> Bool {
         self.cycles += Int(cycles)
         if self.cycles >= 341 {
+            //print(self.cycles)
             self.cycles = self.cycles - 341
-            scanline += 1
+            self.scanline += 1
 
             if scanline == 241 {
-                if self.ctrl.generateVblankNMI() {
-                    self.status.setVblankStatus(true)
-                    status.setSpriteZeroHit(false)
-                    if ctrl.generateVblankNMI() {
-                        nmiInterrupt = 1
-                    }
+                self.status.setVblankStatus(true)
+                status.setSpriteZeroHit(false)
+                if ctrl.generateVblankNMI() {
+                    nmiInterrupt = 1
+                    print("interrupt")
                 }
             }
 
@@ -109,7 +109,32 @@ class NesPPU {
     }
 
     func writeToData(_ data: UInt8) {
-        fatalError("Not Implemented")
+        let addr = addr.get()
+        //print("\(addr): \(data)")
+        switch addr {
+        case 0...0x1fff:
+            print("Attempt to write to chr rom space \(addr)!")
+        case 0x2000...0x2fff:
+            self.vram[Int(mirrorVramAddr(addr))] = data
+        case 0x3000...0x3eff:
+            fatalError("addr \(addr) should not be used in reality!")
+        //Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C
+        case 0x3f10, 0x3f14, 0x3f18, 0x3f1c:
+            let addrMirror = addr - 0x10
+            paletteTable[Int(addrMirror - 0x3f00)] = data
+        case 0x3f00...0x3fff:
+            paletteTable[Int(addr - 0x3f00)] = data
+        default:
+            fatalError("Unexpected access to mirrored space \(addr)")
+        }
+        incrememtVramAddr()
+    }
+
+    func writeOamDma(_ buffer: [UInt8]) {
+        for x in buffer {
+            oamData[Int(oamAddr)] = x
+            oamAddr = oamAddr &+ 1
+        }
     }
 
     func readStatus() -> UInt8 {

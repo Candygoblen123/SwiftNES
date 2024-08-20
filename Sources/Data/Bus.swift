@@ -3,6 +3,7 @@ class Bus {
     var prgRom: [UInt8]
     var ppu: NesPPU
     var cycles: Int = 0
+    var gameloopCallback: (NesPPU) -> ()
 
     fileprivate let RAM : UInt16 = 0x0000
     fileprivate let RAM_MIRRORS_END: UInt16 = 0x1FFF
@@ -11,14 +12,23 @@ class Bus {
     fileprivate let ROM_ADDRESS_START: UInt16 = 0x8000
     fileprivate let ROM_ADDRESS_END: UInt16 = 0xFFFF
 
-    init(_ rom: Rom) {
+    init(_ rom: Rom, gameloopCallback: @escaping (NesPPU) -> ()) {
         ppu = NesPPU(rom.character, rom.screenMirror)
         self.prgRom = rom.program
+        self.gameloopCallback = gameloopCallback
     }
 
     func tick(_ cycles: UInt8) {
         self.cycles += Int(cycles)
+        let nmiBefore = ppu.nmiInterrupt != nil
+        //print(nmiBefore)
         self.ppu.tick(cycles * 3)
+        let nmiAfter = ppu.nmiInterrupt != nil
+        //print(nmiAfter)
+        if !nmiBefore && nmiAfter {
+            gameloopCallback(ppu)
+        }
+
     }
 
     func pollNMI() -> UInt8? {
@@ -34,13 +44,20 @@ extension Bus: Memory {
             let mirrorDownAddr = addr & 0b00000111_11111111
             return self.cpuVram[Int(mirrorDownAddr)]
         case 0x2000, 0x2001, 0x2003, 0x2005, 0x2006, 0x4014:
-            fatalError("Attempt to read from write-only PPU address \(addr)")
+            //fatalError("Attempt to read from write-only PPU address \(addr)")
+            return 0
         case 0x2002:
             return ppu.readStatus()
         case 0x2004:
             return ppu.readOamData()
         case 0x2007:
             return ppu.readData()
+        case 0x4000...0x4015:
+            return 0 // Ignore APU
+        case 0x4016:
+            return 0 // Ignore Joy 1
+        case 0x4017:
+            return 0 // Ignore Joy 2
         case 0x2008...PPU_REGISTERS_MIRRORS_END:
             let mirrorDownAddr = addr & 0b00100000_00000111;
             return self.memRead(mirrorDownAddr)
@@ -76,6 +93,20 @@ extension Bus: Memory {
         case 0x2008...PPU_REGISTERS_MIRRORS_END:
             let mirrorDownAddr = addr & 0b00100000_00000111
             memWrite(mirrorDownAddr, data: data)
+        case 0x4000...0x4013, 0x4015:
+            return // Ignore APU
+        case 0x4016:
+            return // ignore Joy 1
+        case 0x4017:
+            return // Ignore Joy 2
+        case 0x4014:
+            var buffer = [UInt8](repeating: 0, count: 256)
+            let hi = UInt16(data) << 8
+            for i in 0..<256 {
+                buffer[i] = memRead(hi + UInt16(i))
+            }
+
+            ppu.writeOamDma(buffer)
         case ROM_ADDRESS_START...ROM_ADDRESS_END:
             fatalError("Attempt to write to Cartridge ROM space: \(addr)")
         default:
