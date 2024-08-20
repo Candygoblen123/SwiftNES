@@ -1,46 +1,64 @@
 extension CPU {
     func lda(_ mode: AddressingMode) {
-        let addr = getOpperandAddress(mode)
+        let (addr, pageCross) = getOpperandAddress(mode)
         let value = memRead(addr)
 
         setRegisterA(value)
+        if pageCross {
+            bus.tick(1)
+        }
     }
 
     func ldy(_ mode: AddressingMode) {
-        let addr = getOpperandAddress(mode)
+        let (addr, pageCross) = getOpperandAddress(mode)
         let data = memRead(addr)
         register_y = data
         updateZeroAndNegativeFlags(register_y)
+        if pageCross {
+            bus.tick(1)
+        }
     }
 
     func ldx(_ mode: AddressingMode) {
-        let addr = getOpperandAddress(mode)
+        let (addr, pageCross) = getOpperandAddress(mode)
         let data = memRead(addr)
         register_x = data
         updateZeroAndNegativeFlags(register_x)
+        if pageCross {
+            bus.tick(1)
+        }
     }
 
     func sta(_ mode: AddressingMode) {
-        let addr = getOpperandAddress(mode)
+        let (addr, _) = getOpperandAddress(mode)
         memWrite(addr, data: register_a)
     }
 
     func and(_ mode: AddressingMode) {
-        let addr = getOpperandAddress(mode)
+        let (addr, pageCross) = getOpperandAddress(mode)
         let data = memRead(addr)
         self.setRegisterA(data & register_a)
+        if pageCross {
+            bus.tick(1)
+        }
     }
 
     func eor(_ mode: AddressingMode) {
-        let addr = getOpperandAddress(mode)
+        let (addr, pageCross) = getOpperandAddress(mode)
         let data = memRead(addr)
         setRegisterA(data ^ register_a)
+        if pageCross {
+            bus.tick(1)
+        }
     }
 
     func ora(_ mode: AddressingMode) {
-        let addr = getOpperandAddress(mode)
+        let (addr, pageCross) = getOpperandAddress(mode)
         let data = memRead(addr)
         setRegisterA(data | register_a)
+        if pageCross {
+            bus.tick(1)
+        }
     }
 
     func tax() {
@@ -59,16 +77,22 @@ extension CPU {
     }
 
     func sbc(_ mode: AddressingMode) {
-        let addr = getOpperandAddress(mode)
+        let (addr, pageCross) = getOpperandAddress(mode)
         let data = memRead(addr)
         let res = Int8(bitPattern: data) &* -1
         addToRegisterA(UInt8(bitPattern: res &- 1))
+        if pageCross {
+            bus.tick(1)
+        }
     }
 
     func adc(_ mode: AddressingMode) {
-        let addr = getOpperandAddress(mode)
+        let (addr, pageCross) = getOpperandAddress(mode)
         let data = memRead(addr)
         addToRegisterA(data)
+        if pageCross {
+            bus.tick(1)
+        }
     }
 
     func aslAccumulator() {
@@ -83,7 +107,7 @@ extension CPU {
     }
 
     func asl(_ mode: AddressingMode) -> UInt8 {
-        let addr = getOpperandAddress(mode)
+        let (addr, _) = getOpperandAddress(mode)
         var data = memRead(addr)
         if data >> 7 == 1 {
             setCarryFlag()
@@ -108,7 +132,7 @@ extension CPU {
     }
 
     func lsr(_ mode: AddressingMode) -> UInt8 {
-        let addr = getOpperandAddress(mode)
+        let (addr, _) = getOpperandAddress(mode)
         var data = memRead(addr)
         if data & 1 == 1 {
             setCarryFlag()
@@ -138,7 +162,7 @@ extension CPU {
     }
 
     func rol(_ mode: AddressingMode) -> UInt8 {
-        let addr = getOpperandAddress(mode)
+        let (addr, _) = getOpperandAddress(mode)
         var data = memRead(addr)
         let oldCarry = status.contains(.carry)
 
@@ -174,7 +198,7 @@ extension CPU {
     }
 
     func ror(_ mode: AddressingMode) -> UInt8 {
-        let addr = getOpperandAddress(mode)
+        let (addr, _) = getOpperandAddress(mode)
         var data = memRead(addr)
         let oldCarry = status.contains(.carry)
         if data & 1 == 1 {
@@ -192,7 +216,7 @@ extension CPU {
     }
 
     func inc(_ mode: AddressingMode) -> UInt8 {
-        let addr = getOpperandAddress(mode)
+        let (addr, _) = getOpperandAddress(mode)
         var data = memRead(addr)
         data = data &+ 1
         memWrite(addr, data: data)
@@ -211,7 +235,7 @@ extension CPU {
     }
 
     func dec(_ mode: AddressingMode) -> UInt8 {
-        let addr = getOpperandAddress(mode)
+        let (addr, _) = getOpperandAddress(mode)
         var data = memRead(addr)
         data = data &- 1
         memWrite(addr, data: data)
@@ -238,7 +262,7 @@ extension CPU {
     }
 
     func bit(_ mode: AddressingMode) {
-        let addr = getOpperandAddress(mode)
+        let (addr, _) = getOpperandAddress(mode)
         let data = memRead(addr)
         let and = register_a & data
         if and == 0 {

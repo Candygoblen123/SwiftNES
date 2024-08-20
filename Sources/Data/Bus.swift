@@ -2,6 +2,7 @@ class Bus {
     var cpuVram: [UInt8] = .init(repeating: 0, count: 2048)
     var prgRom: [UInt8]
     var ppu: NesPPU
+    var cycles: Int = 0
 
     fileprivate let RAM : UInt16 = 0x0000
     fileprivate let RAM_MIRRORS_END: UInt16 = 0x1FFF
@@ -13,6 +14,15 @@ class Bus {
     init(_ rom: Rom) {
         ppu = NesPPU(rom.character, rom.screenMirror)
         self.prgRom = rom.program
+    }
+
+    func tick(_ cycles: UInt8) {
+        self.cycles += Int(cycles)
+        self.ppu.tick(cycles * 3)
+    }
+
+    func pollNMI() -> UInt8? {
+        ppu.nmiInterrupt
     }
 }
 

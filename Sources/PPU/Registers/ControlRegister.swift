@@ -34,4 +34,8 @@ struct ControlRegister: OptionSet {
             32
         }
     }
+
+    func generateVblankNMI() -> Bool {
+        self.contains(.GENERATE_NMI)
+    }
 }

@@ -15,9 +15,41 @@ class NesPPU {
     var oamAddr: UInt8 = 0
     var oamData = [UInt8](repeating: 0, count: 64 * 4)
 
+    var scanline: UInt16 = 0
+    var cycles: Int = 0
+
+    var nmiInterrupt: UInt8?
+
     init(_ chrRom: [UInt8], _ mirroring: Mirroring) {
         self.chrRom = chrRom
         self.mirroring = mirroring
+    }
+
+    func tick(_ cycles: UInt8) -> Bool {
+        self.cycles += Int(cycles)
+        if self.cycles >= 341 {
+            self.cycles = self.cycles - 341
+            scanline += 1
+
+            if scanline == 241 {
+                if self.ctrl.generateVblankNMI() {
+                    self.status.setVblankStatus(true)
+                    status.setSpriteZeroHit(false)
+                    if ctrl.generateVblankNMI() {
+                        nmiInterrupt = 1
+                    }
+                }
+            }
+
+            if scanline >= 262 {
+                scanline = 0
+                nmiInterrupt = nil
+                status.setSpriteZeroHit(false)
+                self.status.resetVblankStatus()
+                return true
+            }
+        }
+        return false
     }
 
     func writeToPPUAddr(_ value: UInt8) {
@@ -25,7 +57,11 @@ class NesPPU {
     }
 
     func writeToCtrl(_ value: UInt8) {
+        let beforeNmiStatus = ctrl.generateVblankNMI()
         ctrl.rawValue = value
+        if !beforeNmiStatus && ctrl.generateVblankNMI() && status.isInVblank() {
+            nmiInterrupt = 1
+        }
     }
 
     func incrememtVramAddr() {

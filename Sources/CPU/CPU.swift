@@ -14,6 +14,31 @@ enum AddressingMode {
    case NoneAddressing
 }
 
+enum Interrupt {
+    case NMI
+
+    var vectorAddr: UInt16 {
+        switch self {
+        case .NMI:
+            0xfffa
+        }
+    }
+
+    var bFlagMask: UInt8 {
+        switch self {
+        case .NMI:
+            0b00100000
+        }
+    }
+
+    var cpuCycles: UInt8 {
+        switch self {
+        case .NMI:
+            2
+        }
+    }
+}
+
 struct CPUFlags: OptionSet {
     var rawValue: UInt8
 
@@ -44,41 +69,43 @@ class CPU {
     }
 
 
-    func getOpperandAddress(_ mode: AddressingMode) -> UInt16 {
+    func getOpperandAddress(_ mode: AddressingMode) -> (UInt16, Bool) {
         switch mode {
         case .Immediate:
-            return programCounter
+            return (programCounter, false)
         default:
             return getAbsoluteAddress(mode, addr: programCounter)
         }
     }
 
-    func getAbsoluteAddress(_ mode: AddressingMode, addr: UInt16) -> UInt16 {
+    func getAbsoluteAddress(_ mode: AddressingMode, addr: UInt16) -> (UInt16, Bool) {
         switch mode {
         case .ZeroPage:
-            return UInt16(memRead(addr))
+            return (UInt16(memRead(addr)), false)
         case .Absolute:
-            return memReadU16(addr)
+            return (memReadU16(addr), false)
         case .ZeroPage_X:
             let pos = memRead(addr)
             let addr = pos &+ register_x
-            return UInt16(addr)
+            return (UInt16(addr), false)
         case .ZeroPage_Y:
             let pos = memRead(addr)
             let addr = pos &+ register_y
-            return UInt16(addr)
+            return (UInt16(addr), false)
         case .Absolute_X:
             let base = memReadU16(addr)
-            return base &+ UInt16(register_x)
+            let addr = base &+ UInt16(register_x)
+            return (addr, isPageCross(base, addr))
         case .Absolute_Y:
             let base = memReadU16(addr)
-            return base &+ UInt16(register_y)
+            let addr = base &+ UInt16(register_y)
+            return (addr, isPageCross(base, addr))
         case .Indirect_X:
             let base = memRead(addr)
             let ptr = UInt8(base) &+ register_x
             let lo = memRead(UInt16(ptr))
             let hi = memRead(UInt16(ptr &+ 1))
-            return UInt16(hi) << 8 | UInt16(lo)
+            return (UInt16(hi) << 8 | UInt16(lo), false)
         case .Indirect_Y:
             let base = memRead(addr)
 
@@ -86,10 +113,14 @@ class CPU {
             let hi = memRead(UInt16(base &+ 1))
             let deref_base = UInt16(hi) << 8 | UInt16(lo)
             let deref = deref_base &+ UInt16(register_y)
-            return deref
+            return (deref, isPageCross(deref, deref_base))
         default:
             fatalError("mode \(mode) is not implemented")
         }
+    }
+
+    func isPageCross(_ lhs: UInt16, _ rhs: UInt16) -> Bool {
+        lhs & 0xff00 != rhs & 0xff00
     }
 
     func reset() {
@@ -124,13 +155,36 @@ class CPU {
 
     func run(onCycle: @escaping () -> (), onComplete: @escaping () -> ())  {
         let opcodes = OPCODES_MAP
-        //_ = Timer.scheduledTimer(withTimeInterval: 0.00007, repeats: true) { [self] timer in
         while true {
+            if let _nmi = bus.pollNMI() {
+                interrupt(.NMI)
+            }
             processOpcodes(onCycle: onCycle, opcodes: opcodes) {
                 onComplete()
             }
         }
-        //}
+    }
+
+    func interrupt(_ interrupt: Interrupt) {
+        stackPushU16(programCounter)
+        var flag = status
+        if interrupt.bFlagMask & 0b010000 == 1 {
+            flag.insert(.break1)
+        } else {
+            flag.remove(.break1)
+        }
+
+        if interrupt.bFlagMask & 0b100000 == 1 {
+            flag.insert(.break2)
+        } else {
+            flag.remove(.break2)
+        }
+
+        stackPush(flag.rawValue)
+        status.insert(.interruptDisable)
+
+        bus.tick(interrupt.cpuCycles)
+        programCounter = memReadU16(interrupt.vectorAddr)
     }
 
     func processOpcodes(onCycle: () -> (), opcodes: [UInt8: OpCode], onComplete: () -> ()) {
@@ -264,10 +318,10 @@ class CPU {
         case 0x24, 0x2c:
             bit(opcode.mode)
         case 0x86, 0x96, 0x8e:
-            let addr = getOpperandAddress(opcode.mode)
+            let (addr, _) = getOpperandAddress(opcode.mode)
             memWrite(addr, data: register_x)
         case 0x84, 0x94, 0x8c:
-            let addr = getOpperandAddress(opcode.mode)
+            let (addr, _) = getOpperandAddress(opcode.mode)
             memWrite(addr, data: register_y)
         case 0xa2, 0xa6, 0xb6, 0xae, 0xbe:
             ldx(opcode.mode)
@@ -301,8 +355,11 @@ class CPU {
             onComplete()
         /// NOP Read
         case 0x04, 0x44, 0x64, 0x14, 0x34, 0x54, 0x74, 0xd4, 0xf4, 0x0c, 0x1c, 0x3c, 0x5c, 0x7c, 0xdc, 0xfc:
-            let addr = getOpperandAddress(opcode.mode)
+            let (addr, pageCross) = getOpperandAddress(opcode.mode)
             let _ = self.memRead(addr)
+            if pageCross {
+                bus.tick(1)
+            }
             // Do nothing
         /// NOP
         case 0x1a, 0x3a, 0x5a, 0x7a, 0xda, 0xfa:
@@ -320,23 +377,23 @@ class CPU {
             { /* 2 byte NOP immediate, do nothing */ }()
         /// LAX
         case 0xa7, 0xb7, 0xaf, 0xbf, 0xa3, 0xb3:
-            let addr = getOpperandAddress(opcode.mode)
+            let (addr, _) = getOpperandAddress(opcode.mode)
             let data = memRead(addr)
             setRegisterA(data)
             register_x = register_a
         /// SAX
         case 0x87, 0x97, 0x8f, 0x83:
             let data = register_a & register_x
-            let addr = getOpperandAddress(opcode.mode)
+            let (addr, _) = getOpperandAddress(opcode.mode)
             memWrite(addr, data: data)
         // Unoffical SBC
         case 0xeb:
-            let addr = getOpperandAddress(opcode.mode)
+            let (addr, _) = getOpperandAddress(opcode.mode)
             let data = self.memRead(addr)
             subFromRegisterA(data)
         /// DCP
         case 0xc7, 0xd7, 0xCF, 0xdF, 0xdb, 0xd3, 0xc3:
-            let addr = getOpperandAddress(opcode.mode)
+            let (addr, _) = getOpperandAddress(opcode.mode)
             var data = memRead(addr)
             data = data &- 1
             memWrite(addr, data: data)
@@ -362,6 +419,8 @@ class CPU {
 
         default: fatalError("TODO!")
         }
+
+        bus.tick(opcode.cycles)
 
         if programCounterState == programCounter {
             programCounter += UInt16(opcode.len - 1)
@@ -461,7 +520,7 @@ class CPU {
     }
 
     func compare(mode: AddressingMode, compare_with: UInt8) {
-        let addr = getOpperandAddress(mode)
+        let (addr, pageCross) = getOpperandAddress(mode)
         let data = memRead(addr)
         if data <= compare_with {
             status.insert(.carry)
@@ -470,13 +529,22 @@ class CPU {
         }
 
         updateZeroAndNegativeFlags(compare_with &- data)
+
+        if pageCross {
+            bus.tick(1)
+        }
     }
 
     func branch(_ condition: Bool) {
         if condition {
+            bus.tick(1)
             let addr = memRead(programCounter)
             let jump: Int8 = Int8(bitPattern: addr)
             let jump_addr = programCounter &+ 1 &+ UInt16(bitPattern: Int16(jump))
+
+            if (programCounter &+ 1) & 0xff00 != jump_addr & 0xff00 {
+                bus.tick(1)
+            }
 
             programCounter = jump_addr
         }
