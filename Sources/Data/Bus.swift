@@ -32,7 +32,7 @@ class Bus {
     }
 
     func pollNMI() -> UInt8? {
-        ppu.nmiInterrupt
+        ppu.pollNMI()
     }
 }
 

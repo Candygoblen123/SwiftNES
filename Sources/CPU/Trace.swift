@@ -9,7 +9,7 @@ func dumpCpuState(_ cpu: CPU) -> String {
         {
             let (addr, _) = cpu.getAbsoluteAddress(opcode.mode, addr: cpu.programCounter + 1)
 
-            return (addr, cpu.memRead(addr))
+            return (addr, 0)//cpu.memRead(addr))
         }()
     }
 

@@ -28,7 +28,7 @@ struct ControlRegister: OptionSet {
     static let GENERATE_NMI = ControlRegister(rawValue: 0b10000000)
 
     func vramAddrIncrement() -> UInt8 {
-        if self.contains(.VRAM_ADD_INCREMENT) {
+        if !self.contains(.VRAM_ADD_INCREMENT) {
             1
         } else {
             32
@@ -40,7 +40,7 @@ struct ControlRegister: OptionSet {
     }
 
     func backgroundPatternAddr() -> Int {
-        if self.contains(.BACKROUND_PATTERN_ADDR) {
+        if !self.contains(.BACKROUND_PATTERN_ADDR) {
             0
         } else {
             0x1000

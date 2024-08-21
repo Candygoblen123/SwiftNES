@@ -18,7 +18,7 @@ class NesPPU {
     var scanline: UInt16 = 0
     var cycles: Int = 0
 
-    var nmiInterrupt: UInt8?
+    var nmiInterrupt: UInt8? = nil
 
     init(_ chrRom: [UInt8], _ mirroring: Mirroring) {
         self.chrRom = chrRom
@@ -50,6 +50,12 @@ class NesPPU {
             }
         }
         return false
+    }
+
+    func pollNMI() -> UInt8? {
+        let tmp = self.nmiInterrupt
+        self.nmiInterrupt = nil
+        return tmp
     }
 
     func writeToPPUAddr(_ value: UInt8) {
@@ -110,7 +116,7 @@ class NesPPU {
 
     func writeToData(_ data: UInt8) {
         let addr = addr.get()
-        //print("\(addr): \(data)")
+        print("\(addr): \(data)")
         switch addr {
         case 0...0x1fff:
             print("Attempt to write to chr rom space \(addr)!")

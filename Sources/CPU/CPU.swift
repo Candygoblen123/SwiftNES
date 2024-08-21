@@ -157,9 +157,10 @@ class CPU {
     func run(onCycle: @escaping () -> (), onComplete: @escaping () -> ())  {
         let opcodes = OPCODES_MAP
         while true {
-            if let _nmi = bus.pollNMI() {
-                
+            if bus.pollNMI() != nil {
+                print(programCounter)
                 interrupt(.NMI)
+                print(programCounter)
             }
             processOpcodes(onCycle: onCycle, opcodes: opcodes) {
                 onComplete()
