@@ -131,7 +131,6 @@ class CPU {
         status = [.interruptDisable, .break2]
 
         programCounter = self.memReadU16(0xFFFC)
-        print(programCounter)
     }
 
     //func loadAndRun(_ program: [UInt8]) {
@@ -158,9 +157,7 @@ class CPU {
         let opcodes = OPCODES_MAP
         while true {
             if bus.pollNMI() != nil {
-                print(programCounter)
                 interrupt(.NMI)
-                print(programCounter)
             }
             processOpcodes(onCycle: onCycle, opcodes: opcodes) {
                 onComplete()
@@ -197,7 +194,6 @@ class CPU {
 
         let programCounterState = programCounter
         guard let opcode = opcodes[code] else {fatalError("OpCode \(code) not recgonized!")}
-        // print(programCounter, opcode.mnemonic)
 
         switch code {
         /// LDA

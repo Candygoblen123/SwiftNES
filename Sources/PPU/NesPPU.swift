@@ -28,7 +28,6 @@ class NesPPU {
     func tick(_ cycles: UInt8) -> Bool {
         self.cycles += Int(cycles)
         if self.cycles >= 341 {
-            //print(self.cycles)
             self.cycles = self.cycles - 341
             self.scanline += 1
 
@@ -37,7 +36,6 @@ class NesPPU {
                 status.setSpriteZeroHit(false)
                 if ctrl.generateVblankNMI() {
                     nmiInterrupt = 1
-                    print("interrupt")
                 }
             }
 
@@ -116,7 +114,6 @@ class NesPPU {
 
     func writeToData(_ data: UInt8) {
         let addr = addr.get()
-        print("\(addr): \(data)")
         switch addr {
         case 0...0x1fff:
             print("Attempt to write to chr rom space \(addr)!")

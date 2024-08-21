@@ -46,4 +46,28 @@ struct ControlRegister: OptionSet {
             0x1000
         }
     }
+
+    func spritePatternAddr() -> Int {
+        if !self.contains(.SPRITE_PATTERN_ADDR) {
+            0
+        } else {
+            0x1000
+        }
+    }
+
+    func spriteSize() -> Int {
+        if !self.contains(.SPRITE_SIZE) {
+            8
+        } else {
+            16
+        }
+    }
+
+    func masterSlaveSelect() -> Int {
+        if !self.contains(.SPRITE_SIZE) {
+            0
+        } else {
+            1
+        }
+    }
 }
