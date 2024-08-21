@@ -94,7 +94,7 @@ var quit = false
 //     return update
 // }
 
-guard let bytes = NSData(contentsOfFile: "pacman.nes") else { fatalError("Rom not found") }
+guard let bytes = NSData(contentsOfFile: "smb1.nes") else { fatalError("Rom not found") }
 var gameCode = [UInt8](repeating: 0, count: bytes.length)
 bytes.getBytes(&gameCode, length: bytes.length)
 

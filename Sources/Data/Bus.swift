@@ -20,12 +20,8 @@ class Bus {
 
     func tick(_ cycles: UInt8) {
         self.cycles += Int(cycles)
-        let nmiBefore = ppu.nmiInterrupt != nil
-        //print(nmiBefore)
-        self.ppu.tick(cycles * 3)
-        let nmiAfter = ppu.nmiInterrupt != nil
-        //print(nmiAfter)
-        if !nmiBefore && nmiAfter {
+        let newFrame = self.ppu.tick(cycles * 3)
+        if newFrame {
             gameloopCallback(ppu)
         }
 
