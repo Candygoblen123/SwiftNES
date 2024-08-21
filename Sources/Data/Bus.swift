@@ -1,7 +1,8 @@
 class Bus {
     var cpuVram: [UInt8] = .init(repeating: 0, count: 2048)
     var prgRom: [UInt8]
-    var ppu: NesPPU
+    let ppu: NesPPU
+    let joypad1: Joypad
     var cycles: Int = 0
     var gameloopCallback: (NesPPU) -> ()
 
@@ -12,10 +13,12 @@ class Bus {
     fileprivate let ROM_ADDRESS_START: UInt16 = 0x8000
     fileprivate let ROM_ADDRESS_END: UInt16 = 0xFFFF
 
-    init(_ rom: Rom, gameloopCallback: @escaping (NesPPU) -> ()) {
+    init(rom: Rom, joypad1: Joypad, gameloopCallback: @escaping (NesPPU) -> ()) {
         ppu = NesPPU(rom.character, rom.screenMirror)
         self.prgRom = rom.program
         self.gameloopCallback = gameloopCallback
+        self.joypad1 = joypad1
+
     }
 
     func tick(_ cycles: UInt8) {
@@ -51,7 +54,7 @@ extension Bus: Memory {
         case 0x4000...0x4015:
             return 0 // Ignore APU
         case 0x4016:
-            return 0 // Ignore Joy 1
+            return joypad1.read()
         case 0x4017:
             return 0 // Ignore Joy 2
         case 0x2008...PPU_REGISTERS_MIRRORS_END:
@@ -92,7 +95,7 @@ extension Bus: Memory {
         case 0x4000...0x4013, 0x4015:
             return // Ignore APU
         case 0x4016:
-            return // ignore Joy 1
+            joypad1.write(data)
         case 0x4017:
             return // Ignore Joy 2
         case 0x4014:
