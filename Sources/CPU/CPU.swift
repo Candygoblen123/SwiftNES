@@ -151,7 +151,7 @@ class CPU {
     //}
 
     func run() {
-        run(onCycle: { print(dumpCpuState(self)) }, onComplete: {})
+        run(onCycle: {}, onComplete: {})
     }
 
     func run(onCycle: @escaping () -> (), onComplete: @escaping () -> ())  {
