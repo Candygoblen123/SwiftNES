@@ -41,8 +41,21 @@ let keyMap = [
 ]
 
 var frame = Frame()
-let bus = Bus(rom: rom, joypad1: joypad1) { ppu in
+let time: UnsafeMutablePointer<timespec> = UnsafeMutablePointer<timespec>.allocate(capacity: 1)
+clock_gettime(CLOCK_REALTIME, time)
+time.pointee.tv_nsec += Int(0.01666 * 1000000000)
+let bus = Bus(rom: rom, joypad1: joypad1) { ppu in 
     Render.render(ppu, frame: frame)
+
+    //wait here until 16.66 ms have passed
+    clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, time, nil)
+    var nextNSec = time.pointee.tv_nsec + Int(0.01666 * 1000000000)
+    if nextNSec > 999999999 {
+        nextNSec -= 999999999
+        time.pointee.tv_sec += 1
+    }
+    time.pointee.tv_nsec = nextNSec
+
     SDL_UpdateTexture(texture, nil, frame.data, 256 * 3)
     SDL_RenderCopy(canvas, texture, nil, nil)
     SDL_RenderPresent(canvas)
@@ -75,3 +88,4 @@ let bus = Bus(rom: rom, joypad1: joypad1) { ppu in
 let cpu = CPU(bus: bus)
 cpu.reset()
 cpu.run()
+time.deallocate()
