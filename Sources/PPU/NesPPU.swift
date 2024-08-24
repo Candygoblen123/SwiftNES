@@ -28,6 +28,9 @@ class NesPPU {
     func tick(_ cycles: UInt8) -> Bool {
         self.cycles += Int(cycles)
         if self.cycles >= 341 {
+            if checkSprite0Hit(self.cycles) {
+                status.setSpriteZeroHit(true)
+            }
             self.cycles = self.cycles - 341
             self.scanline += 1
 
@@ -48,6 +51,12 @@ class NesPPU {
             }
         }
         return false
+    }
+
+    func checkSprite0Hit(_ cycle: Int) -> Bool {
+        let y = Int(oamData[0])
+        let x = Int(oamData[0])
+        return (y == scanline) && x <= cycle && mask.showSprites()
     }
 
     func pollNMI() -> UInt8? {

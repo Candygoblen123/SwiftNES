@@ -70,4 +70,19 @@ struct ControlRegister: OptionSet {
             1
         }
     }
+
+    func nametableAddr() -> UInt16 {
+        switch rawValue & 0b11 {
+        case 0:
+            0x2000
+        case 1:
+            0x2400
+        case 2:
+            0x2800
+        case 3:
+            0x2c00
+        default:
+            fatalError("naemtableAddr: Not possible!")
+        }
+    }
 }
